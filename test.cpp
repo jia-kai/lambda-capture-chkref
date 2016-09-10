@@ -1,5 +1,12 @@
-class C {
+class Base {
+    int m_bx;
+    protected:
+        int m_y;
+};
+
+class C: public Base {
     int m_x = 2;
+    int *m_ptr = nullptr;
 
     public:
         // should warn
@@ -29,14 +36,41 @@ class C {
             };
             return g;
         }
+        auto f4() {
+            auto p = m_ptr;
+            auto g = [=]() {
+                return *p;
+            };
+            return g;
+        }
 
         // should not warn
         auto t0() {
             int &v = m_x;
-            auto g = [=]() {
-                return v;
+            auto h = [=]() {
+                const int *p = &v;
+                return p;
             };
-            return g;
+            return h;
         }
+        auto t1() {
+            int n = m_x;
+            auto h = [n]() {
+                return &n;
+            };
+            return h;
+        }
+};
+
+template<class T>
+class TestUnresolved {
+    int *m_ptr;
+
+    auto f() {
+        auto dependent = m_ptr;
+        auto g = [=]() {
+            return dependent;
+        };
+    }
 };
 

@@ -1,10 +1,11 @@
 # $File: Makefile
-# $Date: Sat Sep 10 16:26:56 2016 +0800
+# $Date: Sun Sep 11 00:18:55 2016 +0800
 # $Author: jiakai <jia.kai66@gmail.com>
 
 TARGET := chkref.so
 
 SRC_EXT := cpp
+override PROG ?= test.cpp
 override OPTFLAG ?= -O2
 
 override CXXFLAGS += \
@@ -40,7 +41,7 @@ clean:
 	rm -rf $(BUILD_DIR) $(TARGET)
 
 run: $(TARGET)
-	clang++ -std=c++14 test.cpp -c -o /dev/null $(shell ./cmdline.sh)
+	clang++ -std=c++14 $(PROG) -c -o /dev/null $(shell ./cmdline.sh)
 
 .PHONY: all clean run
 

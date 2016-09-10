@@ -8,6 +8,7 @@
 #include "clang/AST/Type.h"
 
 #include <memory>
+#include <unordered_set>
 #include <deque>
 
 #define force_assert(_expr) do { \
@@ -21,10 +22,42 @@ using namespace clang;
 
 namespace {
 
+class FindLambdaVisitor;
+class DeclRefExprChecker: public RecursiveASTVisitor<DeclRefExprChecker> {
+    bool m_visit_expr = false;
+    FindLambdaVisitor * const m_lambda_finder;
+    std::unordered_set<Expr*> m_sub_exprs;
+
+    public:
+        DeclRefExprChecker(FindLambdaVisitor *v):
+            m_lambda_finder{v}
+        {}
+
+        bool VisitExpr(Expr *expr) {
+            if (m_visit_expr) {
+                m_sub_exprs.insert(expr);
+            }
+            return true;
+        }
+
+        bool VisitDeclRefExpr(DeclRefExpr *expr);
+
+        void WorkLambdaBody(LambdaExpr *expr) {
+            auto body = expr->getBody();
+            m_sub_exprs.clear();
+            m_visit_expr = true;
+            this->TraverseCompoundStmt(body);
+            m_visit_expr = false;
+            this->TraverseCompoundStmt(body);
+        }
+};
+
 class FindLambdaVisitor: public RecursiveASTVisitor<FindLambdaVisitor> {
     ASTContext *m_context;
     DiagnosticsEngine &m_diag_engine;
     uint32_t m_diag_id_this, m_diag_id_ref, m_diag_id_ptr;
+    DeclRefExprChecker m_decl_ref_checker{this};
+    std::unordered_set<std::string> m_cur_warned_ptr;
 
     void handle_capture_this(LambdaExpr *expr) {
         std::string msg;
@@ -45,8 +78,8 @@ class FindLambdaVisitor: public RecursiveASTVisitor<FindLambdaVisitor> {
             if (require_non_private && f->getAccess() == AS_private) {
                 return true;
             }
-            if (nr_f >= 2) {
-                if (nr_f == 2)
+            if (nr_f >= 3) {
+                if (nr_f == 3)
                     msg.append(" ...");
                 ++ nr_f;
                 return false;
@@ -92,6 +125,7 @@ class FindLambdaVisitor: public RecursiveASTVisitor<FindLambdaVisitor> {
         {}
 
         bool VisitLambdaExpr(LambdaExpr *expr) {
+            m_cur_warned_ptr.clear();
             auto location = expr->getLocStart();
             for (auto &&capture: expr->captures()) {
                 auto kind = capture.getCaptureKind();
@@ -112,13 +146,42 @@ class FindLambdaVisitor: public RecursiveASTVisitor<FindLambdaVisitor> {
                 // check if var is ptr
                 auto var = capture.getCapturedVar();
                 if (var->getType()->isPointerType()) {
-                    m_diag_engine.Report(location, m_diag_id_ptr) <<
-                        var->getNameAsString() << var->getType().getAsString();
+                    WarnPtr(location, var->getNameAsString(),
+                            var->getType().getAsString());
                 }
             }
+            // XXX: only for dependent name lookup, and it should be handled
+            // aftre Sema; but I do not know how to do this ...
+            m_decl_ref_checker.WorkLambdaBody(expr);
             return true;
         }
+
+        void WarnPtr(const SourceLocation &loc, const std::string &name,
+                const std::string &type) {
+            if (m_cur_warned_ptr.insert(name).second) {
+                m_diag_engine.Report(loc, m_diag_id_ptr) << name << type;
+            }
+        }
 };
+
+bool DeclRefExprChecker::VisitDeclRefExpr(DeclRefExpr *expr) {
+    if (m_visit_expr)
+        return true;
+
+    if (auto f = expr->getFoundDecl()) {
+        auto vard = dyn_cast<VarDecl>(f);
+        if (vard && vard->hasInit()) {
+            auto init = vard->getInit();
+            if (init->getType()->isPointerType() && !m_sub_exprs.count(init)) {
+                m_lambda_finder->WarnPtr(
+                        expr->getLocation(),
+                        vard->getNameAsString(),
+                        init->getType().getAsString());
+            }
+        }
+    }
+    return true;
+}
 
 class FindLambdaConsumer: public clang::ASTConsumer {
     public:
