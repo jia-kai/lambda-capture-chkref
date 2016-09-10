@@ -17,4 +17,8 @@ function chk_arg {
     done
 }
 
-clang++ $(chk_arg "$@") "$@"
+args=$(chk_arg "$@")
+[ -n "$args" ] && clang++ "$@" $args
+
+# seems that clang would not write output file if plugin is usedd
+exec clang++ "$@"
