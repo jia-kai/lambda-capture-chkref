@@ -20,17 +20,22 @@ Compile by `make`, and use `clang.sh` as the C++ compiler; or pass
 `make run` would output the following:
 
 ```txt
-test.cpp:7:22: warning: Lambda captures this
+test.cpp:14:22: warning: Lambda captures this: class `C' with fields: m_x m_ptr m_y
             auto g = [=]() {
                      ^
-test.cpp:14:22: warning: Lambda captures var by ref: cap
+test.cpp:21:22: warning: Lambda captures var by ref: cap
             auto g = [&cap] {
                      ^
-test.cpp:21:22: warning: Lambda captures pointer: m (type int *)
+test.cpp:28:22: warning: Lambda captures pointer: m (type int *)
             auto g = [m]() {
                      ^
-test.cpp:27:22: warning: Lambda captures var by ref: v
+test.cpp:34:22: warning: Lambda captures var by ref: v
             auto g = [&]() {
                      ^
-4 warnings generated.
-```
+test.cpp:41:22: warning: Lambda captures pointer: p (type int *)
+            auto g = [=]() {
+                     ^
+test.cpp:72:20: warning: Lambda captures pointer: dependent (type int *)
+            return dependent;
+                   ^
+6 warnings generated.
