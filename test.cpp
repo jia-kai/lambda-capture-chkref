@@ -66,11 +66,17 @@ template<class T>
 class TestUnresolved {
     int *m_ptr;
 
-    auto f() {
-        auto dependent = m_ptr;
-        auto g = [=]() {
-            return dependent;
-        };
-    }
+    public:
+        auto f() {
+            auto dependent = m_ptr;
+            auto g = [=]() {
+                return dependent;
+            };
+            return g;
+        }
 };
+
+void use_unresolve() {
+    TestUnresolved<void>{}.f();
+}
 

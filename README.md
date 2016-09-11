@@ -35,7 +35,8 @@ test.cpp:34:22: warning: Lambda captures var by ref: v
 test.cpp:41:22: warning: Lambda captures pointer: p (type int *)
             auto g = [=]() {
                      ^
-test.cpp:72:20: warning: Lambda captures pointer: dependent (type int *)
-            return dependent;
-                   ^
+test.cpp:72:22: warning: Lambda captures pointer: dependent (type int *)
+            auto g = [=]() {
+                     ^
 6 warnings generated.
+```
