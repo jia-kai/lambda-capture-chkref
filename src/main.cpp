@@ -10,6 +10,7 @@
 #include <memory>
 #include <unordered_set>
 #include <deque>
+#include <cstdlib>
 
 #define force_assert(_expr) do { \
     if (!(_expr)) { \
@@ -21,6 +22,8 @@
 using namespace clang;
 
 namespace {
+
+std::unordered_set<std::string> g_ignore_pointer_type;
 
 class FindLambdaVisitor: public RecursiveASTVisitor<FindLambdaVisitor> {
     ASTContext *m_context;
@@ -112,7 +115,10 @@ class FindLambdaVisitor: public RecursiveASTVisitor<FindLambdaVisitor> {
 
                 // check if var is ptr
                 auto var = capture.getCapturedVar();
-                if (var->getType()->isPointerType()) {
+                auto type = var->getType();
+                if (type->isPointerType() &&
+                        !g_ignore_pointer_type.count(
+                            type->getPointeeType().getAsString())) {
                     m_diag_engine.Report(location, m_diag_id_ptr) <<
                         var->getNameAsString() << var->getType().getAsString();
                 }
@@ -139,6 +145,19 @@ class FindLambdaConsumer: public clang::ASTConsumer {
 class FindLambdaAction final: public clang::PluginASTAction {
     bool ParseArgs(const CompilerInstance &,
             const std::vector<std::string>&) override {
+        if (const char* ignore = getenv("CHKREF_IGNORE_POINTER_TYPE")) {
+            std::string cur;
+            for (; ; ) {
+                while (*ignore && *ignore != ';') {
+                    cur.append(1, *(ignore ++));
+                }
+                g_ignore_pointer_type.insert(cur);
+                if (!*ignore)
+                    break;
+                ignore ++;
+                cur.clear();
+            }
+        }
         return true;
     }
 

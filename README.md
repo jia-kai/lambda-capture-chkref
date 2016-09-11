@@ -16,6 +16,13 @@ or explicitly capture `this`, a pointer, or a reference.
 Compile by `make`, and use `clang.sh` as the C++ compiler; or pass
 `$(cmdline.sh)` to clang++ argument.
 
+
+### Environment Variables
+
+* `CHKREF_IGNORE_POINTER_TYPE`: types whose pointers would not cause warning if
+  get captured. Separated by semicoln.
+
+
 ## Example
 `make run` would output the following:
 
